@@ -31,6 +31,8 @@ export default function Products() {
     queryFn: () => getAllProductVariantSizeApi(`?vendor_id=${id}`)
   });
 
+const ids = data?.data?.slice(0, 71)?.map((item: any) => item?.id);
+console.log(ids);
 
   const handleAddProduct = () => {
     // setProductForm(initialProductForm);
