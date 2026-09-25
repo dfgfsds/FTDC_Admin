@@ -23,6 +23,16 @@ function BlogModal({ open, close, userId, editData }: any) {
         description: Yup.string().required("Description is required"),
         content: Yup.string().required("Content is required"),
         author: Yup.string().required("Author is required"),
+        meta_title: Yup.string().nullable(),
+        meta_description: Yup.string().nullable(),
+        canonical_tag: Yup.string().nullable(),
+        robots_tag: Yup.string().nullable(),
+        url_description: Yup.string().nullable(),
+        url_slug: Yup.string().nullable(),
+        og_tags: Yup.string().nullable(),
+        twitter_tags: Yup.string().nullable(),
+        image_src_tags: Yup.string().nullable(),
+        schema: Yup.string().nullable(),
     });
     const {
         register,
@@ -42,6 +52,16 @@ function BlogModal({ open, close, userId, editData }: any) {
             setValue("description", editData?.description || "");
             setValue("content", editData?.content || "");
             setValue("author", editData?.author || "");
+            setValue("meta_title", editData?.meta_title || "");
+            setValue("meta_description", editData?.meta_description || "");
+            setValue("canonical_tag", editData?.canonical_tag || "");
+            setValue("robots_tag", editData?.robots_tag || "");
+            setValue("url_description", editData?.url_description || "");
+            setValue("url_slug", editData?.url_slug || "");
+            setValue("og_tags", editData?.og_tags && Object.keys(editData.og_tags).length > 0 ? JSON.stringify(editData.og_tags) : "");
+            setValue("twitter_tags", editData?.twitter_tags && Object.keys(editData.twitter_tags).length > 0 ? JSON.stringify(editData.twitter_tags) : "");
+            setValue("image_src_tags", editData?.image_src_tags && Object.keys(editData.image_src_tags).length > 0 ? JSON.stringify(editData.image_src_tags) : "");
+            setValue("schema", editData?.schema && Object.keys(editData.schema).length > 0 ? JSON.stringify(editData.schema) : "");
 
             if (editData?.banner_url) {
                 setImages([{ url: editData?.banner_url }]);
@@ -53,8 +73,15 @@ function BlogModal({ open, close, userId, editData }: any) {
         delete data?.banner_url;
         try {
             setApiError("");
+            const parseJSON = (str: any) => {
+                try { return str ? JSON.parse(str) : {}; } catch (e) { return {}; }
+            };
             const payload = {
                 ...data,
+                og_tags: parseJSON(data.og_tags),
+                twitter_tags: parseJSON(data.twitter_tags),
+                image_src_tags: parseJSON(data.image_src_tags),
+                schema: parseJSON(data.schema),
                 banner_url: images[0]?.url || "",
                 vendor: id,
                 user: userId,
@@ -102,8 +129,8 @@ function BlogModal({ open, close, userId, editData }: any) {
 
     return (
         <>
-            <div className="fixed inset-0 z-50 bg-black bg-opacity-30 flex justify-center items-center">
-                <div className="bg-white p-6 rounded-md w-full max-w-lg max-h-[100vh] overflow-y-auto"
+            <div className="fixed inset-0 z-50 bg-black bg-opacity-30 flex justify-center items-center p-4">
+                <div className="bg-white p-6 rounded-md w-full max-w-4xl max-h-[90vh] overflow-y-auto"
                     style={{
                         scrollbarWidth: 'none',
                         msOverflowStyle: 'none'
@@ -114,15 +141,29 @@ function BlogModal({ open, close, userId, editData }: any) {
                     </h3>
 
 
-                    <form onSubmit={handleSubmit(onSubmit)} className="space-y-3">
-                        <div>
-                            <Input label='Title' {...register("title")} className="input" />
-                            <p className="text-red-500 text-sm">{errors.title?.message}</p>
-                        </div>
+                    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <Input label='Title' {...register("title")} className="input" />
+                                <p className="text-red-500 text-sm">{errors.title?.message}</p>
+                            </div>
 
-                        <div>
-                            <Input label='Subtitle' {...register("subtitle")} className="input" />
-                            <p className="text-red-500 text-sm">{errors.subtitle?.message}</p>
+                            <div>
+                                <Input label='Subtitle' {...register("subtitle")} className="input" />
+                                <p className="text-red-500 text-sm">{errors.subtitle?.message}</p>
+                            </div>
+                            
+                            <div>
+                                <Input label='Author' {...register("author")} className="input" />
+                                <p className="text-red-500 text-sm">{errors.author?.message}</p>
+                            </div>
+                            
+                            <div>
+                                <label className="block text-sm font-bold mb-1">
+                                    Banner
+                                </label>
+                                <SingleImageUpload images={images} onChange={setImages} />
+                            </div>
                         </div>
 
                         <div>
@@ -136,7 +177,6 @@ function BlogModal({ open, close, userId, editData }: any) {
                             <p className="text-red-500 text-sm">{errors.description?.message}</p>
                         </div>
 
-                        {/* ✅ ReactQuill instead of textarea */}
                         <div>
                             <label className="block text-sm font-bold mb-1">Content</label>
                             <ReactQuill
@@ -150,20 +190,46 @@ function BlogModal({ open, close, userId, editData }: any) {
                             <p className="text-red-500 text-sm">{errors.content?.message}</p>
                         </div>
 
-                        <div>
-                            <Input label='Author' {...register("author")} className="input" />
-                            <p className="text-red-500 text-sm">{errors.author?.message}</p>
+                        <div className="border-t pt-4 mt-6">
+                            <h4 className="text-lg font-semibold mb-4">SEO & Metadata</h4>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div>
+                                    <Input label='URL Slug' {...register("url_slug")} className="input" />
+                                </div>
+                                <div>
+                                    <Input label='Meta Title' {...register("meta_title")} className="input" />
+                                </div>
+                                <div>
+                                    <Input label='Canonical Tag' {...register("canonical_tag")} className="input" />
+                                </div>
+                                <div>
+                                    <Input label='Robots Tag' {...register("robots_tag")} className="input" />
+                                </div>
+                                <div className="md:col-span-2">
+                                    <Input label='URL Description' {...register("url_description")} className="input" />
+                                </div>
+                                <div className="md:col-span-2">
+                                    <label className="block text-sm font-bold mb-1">Meta Description</label>
+                                    <textarea {...register("meta_description")} className="mt-1 block w-full border p-2 rounded-md border-gray-500 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm" rows={2} />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-bold mb-1">OG Tags (JSON)</label>
+                                    <textarea {...register("og_tags")} className="mt-1 block w-full p-2 border rounded-md border-gray-500 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm" rows={3} />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-bold mb-1">Twitter Tags (JSON)</label>
+                                    <textarea {...register("twitter_tags")} className="mt-1 block w-full p-2 border rounded-md border-gray-500 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm" rows={3} />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-bold mb-1">Image Src Tags (JSON)</label>
+                                    <textarea {...register("image_src_tags")} className="mt-1 block w-full p-2 border rounded-md border-gray-500 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm" rows={3} />
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-bold mb-1">Schema (JSON)</label>
+                                    <textarea {...register("schema")} className="mt-1 block w-full p-2 border rounded-md border-gray-500 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm" rows={3} />
+                                </div>
+                            </div>
                         </div>
-
-                        <div>
-                            <label className="block text-sm font-bold  mb-1">
-                                Banner
-                            </label>
-                            <SingleImageUpload images={images} onChange={setImages} />
-
-                        </div>
-
-
 
                         {apiError && <p className="text-red-600">{apiError}</p>}
 
