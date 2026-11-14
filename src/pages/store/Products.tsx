@@ -21,18 +21,13 @@ export default function Products() {
   const [productForm, setProductForm] = useState<any>();
   const [searchTerm, setSearchTerm] = useState('');
 
-  // const { data,isLoading }:any =useQuery({
-  //   queryKey:['getProductData'],
-  //   queryFn:()=>getProductApi('?vendor_id=9')
-  // });
-
   const { data, isLoading }: any = useQuery({
-    queryKey: ['getAllProductVariantSizeData',id],
+    queryKey: ['getAllProductVariantSizeData', id],
     queryFn: () => getAllProductVariantSizeApi(`?vendor_id=${id}`)
   });
 
-const ids = data?.data?.slice(0, 71)?.map((item: any) => item?.id);
-console.log(ids);
+  const ids = data?.data?.slice(0, 71)?.map((item: any) => item?.id);
+  console.log(ids);
 
   const handleAddProduct = () => {
     // setProductForm(initialProductForm);
