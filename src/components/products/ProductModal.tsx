@@ -28,7 +28,7 @@ export default function ProductModal({
 }: ProductModalProps) {
   const queryClient = useQueryClient();
   const { id } = useParams<{ id: string }>();
-  const [subcategoryOptions, setSubcategoryOptions] = useState([]);
+  const [subcategoryOptions, setSubcategoryOptions] = useState<any[]>([]);
   const [images, setImages] = useState<any[]>([]);
   const [variantImages, setVariantImages] = useState<any[]>([]);
   const [isLoadings, setIsLoading] = useState<any>(false);
@@ -44,23 +44,14 @@ export default function ProductModal({
     },
   });
 
-  // const {
-  //   fields: varietyFields,
-  //   append: appendVariety,
-  //   remove: removeVariety,
-  // } = useFieldArray({
-  //   control,
-  //   name: 'varieties',
-  // });
-
-  const { data, isLoading } = useQuery({
+  const { data: categoriesData, isLoading } = useQuery({
     queryKey: ["getCategoriesWithSubcategoriesData", id],
     queryFn: () => getCategoriesWithSubcategoriesApi(`vendor/${id}/`),
   })
   const handleCategoryChange = (selectedOption: any) => {
     setValue('category', selectedOption?.value);
     setValue('subcategory', null);
-    const selectedCat = data?.data?.find((cat: any) => cat?.id === selectedOption?.value);
+    const selectedCat = categoriesData?.data?.find((cat: any) => String(cat?.id) === String(selectedOption?.value));
     setSubcategoryOptions(
       selectedCat?.subcategories?.map((sub: any) => ({
         value: sub?.id,
@@ -69,19 +60,35 @@ export default function ProductModal({
     );
   };
 
-  const categoryOptions = data?.data?.map((cat: any) => ({
+  const categoryOptions = categoriesData?.data?.map((cat: any) => ({
     value: cat?.id,
     label: cat?.name
   })) || [];
 
-
+  useEffect(() => {
+    const selectedCategoryId = watch('category') || (productForm?.category?.id !== undefined ? productForm?.category?.id : productForm?.category);
+    if (selectedCategoryId && categoriesData?.data) {
+      const selectedCat = categoriesData?.data?.find((cat: any) => String(cat?.id) === String(selectedCategoryId));
+      setSubcategoryOptions(
+        selectedCat?.subcategories?.map((sub: any) => ({
+          value: sub?.id,
+          label: sub?.name
+        })) || []
+      );
+    }
+  }, [productForm, categoriesData]);
 
   useEffect(() => {
+    if (!productForm) return;
+
+    const catId = productForm?.category?.id !== undefined ? productForm?.category?.id : productForm?.category;
+    const subCatId = productForm?.subcategory?.id !== undefined ? productForm?.subcategory?.id : productForm?.subcategory;
+
     setValue('name', productForm?.name);
     setValue('price', productForm?.price);
     setValue('discount', productForm?.discount);
-    setValue('category', productForm?.category);
-    setValue('subcategory', productForm?.subcategory);
+    setValue('category', catId);
+    setValue('subcategory', subCatId);
     setValue('brand_name', productForm?.brand_name);
     setValue('commission', productForm?.commission);
 
@@ -97,7 +104,7 @@ export default function ProductModal({
     setValue('description_2', productForm?.description_2);
     setValue('keywords', productForm?.keywords);
     setValue('meta_tax', productForm?.meta_tax);
-    setValue('image_urls', setImages(productForm?.image_urls?.map((item: any) => { return item })));
+    setImages(productForm?.image_urls?.map((item: any) => item) || []);
 
     if (productForm?.variants) {
       productForm.variants.forEach((item: any, index: number) => {
@@ -141,12 +148,12 @@ export default function ProductModal({
 
   console.log(variantImages[0]?.url)
   const onSubmit = async (data: any) => {
-    // setIsLoading(true);
+    setIsLoading(true);
     setErrorMessage('');
 
     const payload = {
       product: {
-        ...(productForm ? '' : { vendor: id }),
+        ...(productForm ? {} : { vendor: id }),
         name: data?.name,
         brand_name: data?.brand_name,
         description: data?.description,
@@ -161,12 +168,8 @@ export default function ProductModal({
         height: data?.height,
         discount: data?.discount,
         stock_quantity: data?.stock_quantity,
-        ...(productForm
-          ? {}
-          : {
-            ...(data?.category && { category: data?.category }),
-            ...(data?.subcategory && { subcategory: data?.subcategory }),
-          }),
+        ...(data?.category && { category: data?.category }),
+        ...(data?.subcategory && { subcategory: data?.subcategory }),
         keywords: data.keywords,
         meta_tax: data.meta_tax,
         is_featured: true,
@@ -218,9 +221,11 @@ export default function ProductModal({
       }
 
       if (updateApi) {
+        queryClient.invalidateQueries(['getAllProductVariantSizeData', id] as InvalidateQueryFilters);
+        queryClient.invalidateQueries(['getAllProductVariantSizeData'] as InvalidateQueryFilters);
         queryClient.invalidateQueries(['getProductData'] as InvalidateQueryFilters);
         onClose();
-        toast.success("Product created successfully!");
+        toast.success(productForm ? "Product updated successfully!" : "Product created successfully!");
       } else {
         throw new Error('Something went wrong. Please try again.');
       }
@@ -272,8 +277,11 @@ export default function ProductModal({
                       {...field}
                       options={categoryOptions}
                       placeholder="Select Category"
-                      onChange={handleCategoryChange}
-                      value={categoryOptions.find((opt: any) => opt.value === field.value) || null}
+                      onChange={(selectedOption: any) => {
+                        field.onChange(selectedOption?.value || null);
+                        handleCategoryChange(selectedOption);
+                      }}
+                      value={categoryOptions.find((opt: any) => String(opt.value) === String(field.value)) || null}
                     />
                   )}
                 />
@@ -291,8 +299,11 @@ export default function ProductModal({
                       options={subcategoryOptions}
                       placeholder="Select Subcategory"
                       isDisabled={!subcategoryOptions.length}
-                      value={subcategoryOptions.find((opt: any) => opt.value === field.value) || null}
-                      onChange={(selected: any) => setValue('subcategory', selected?.value)}
+                      value={subcategoryOptions.find((opt: any) => String(opt.value) === String(field.value)) || null}
+                      onChange={(selected: any) => {
+                        field.onChange(selected?.value || null);
+                        setValue('subcategory', selected?.value || null);
+                      }}
                     />
                   )}
                 />
@@ -329,8 +340,8 @@ export default function ProductModal({
                 <label className="block text-sm font-medium text-gray-700">Description</label>
                 <textarea  {...register('description')} rows={3} className="mt-1 block w-full rounded-md border-gray-300 shadow-sm focus:border-indigo-500 focus:ring-indigo-500 sm:text-sm" />
               </div> */}
-                   <div className='col-span-12 lg:col-span-12'>
-              <label className="block text-sm font-bold  my-2">Description</label>
+              <div className='col-span-12 lg:col-span-12'>
+                <label className="block text-sm font-bold  my-2">Description</label>
                 <Controller
                   name="description"
                   control={control}
@@ -387,135 +398,6 @@ export default function ProductModal({
               </div>
             </div>
             {/* <Button type="submit">Submit</Button> */}
-
-            {/* <div>
-
-              {varietyFields?.map((variety, varietyIndex: number) => (
-                <div key={variety.id} className="border rounded-lg p-4 mb-3 relative space-y-4">
-                  <div className='flex justify-betweens'>
-                    <div className="flex justify-between items-center mb-4">
-                      <h1 className='font-bold'>Varieties {varietyIndex + 1}</h1>
-                    </div>
-                    <button
-                      type="button"
-                      onClick={() => removeVariety(varietyIndex)}
-                      className="absolute right-2 top-2 text-gray-400 hover:text-gray-500"
-                    >
-                      <X className="h-5 w-5" />
-                    </button>
-                  </div>
-
-                  <div className='grid grid-cols-1 gap-2'>
-                    <div className='col-span-12 sm:col-span-6 md:col-span-6 lg:col-span-6'>
-              
-                      <Input
-                        label="Product Variant Title"
-                        {...register(`varieties.${varietyIndex}.product_variant_title`, { required: true })}
-                      />
-                    </div>
-                    <div className='col-span-12 lg:col-span-12'>
-                      <ImageUpload
-                        images={variantImages[varietyIndex] || []}
-                        onChange={(images) => {
-                          setVariantImages((prev) => ({
-                            ...prev,
-                            [varietyIndex]: images,
-                          }));
-                        }}
-                        multiple
-                        label="Variety Images"
-                      />
-
-                    </div>
-                    <div className='col-span-12 sm:col-span-6 md:col-span-6 lg:col-span-6'>
-                    
-                      <Input
-                        label="Product Variant Description"
-                        {...register(`varieties.${varietyIndex}.product_variant_description`, { required: true })}
-                      />
-                    </div>
-                    <div className='col-span-12 sm:col-span-6 md:col-span-6 lg:col-span-6'>
-                     
-                      <Input
-                        label="SKU"
-                        {...register(`varieties.${varietyIndex}.product_variant_sku`, { required: true })}
-                      />
-                    </div>
-                    <div className='col-span-12 sm:col-span-6 md:col-span-6 lg:col-span-6'>
-          
-                      <Input
-                        type="number"
-                        step="0.01"
-                        label="Price"
-                        {...register(`varieties.${varietyIndex}.product_variant_price`, { required: true })}
-                      />
-                    </div>
-                    <div className='col-span-12 sm:col-span-6 md:col-span-6 lg:col-span-6'>
-                 
-                      <Input
-                        label="Weight"
-                        {...register(`varieties.${varietyIndex}.product_variant_weight`)}
-                      />
-                    </div>
-                    <div className='col-span-12 sm:col-span-6 md:col-span-6 lg:col-span-6'>
-                    
-                      <Input
-                        label="Length"
-                        {...register(`varieties.${varietyIndex}.product_variant_length`)}
-                      />
-                    </div>
-                    <div className='col-span-12 sm:col-span-6 md:col-span-6 lg:col-span-6'>
-                   
-                      <Input
-                        label="Breadth"
-                        {...register(`varieties.${varietyIndex}.product_variant_breadth`)}
-                      />
-                    </div>
-                    <div className='col-span-12 sm:col-span-6 md:col-span-6 lg:col-span-6'>
-               
-                      <Input
-                        label="Height"
-                        {...register(`varieties.${varietyIndex}.product_variant_height`)}
-                      />
-                    </div>
-                    <div className='col-span-12 sm:col-span-6 md:col-span-6 lg:col-span-6'>
-         
-                      <Input
-                        type="number"
-                        label="Discount (%)"
-                        {...register(`varieties.${varietyIndex}.product_variant_discount`)}
-                      />
-                    </div>
-                    <div className='col-span-12 sm:col-span-6 md:col-span-6 lg:col-span-6'>
-               
-                      <Input
-                        type="number"
-                        label="Stock Quantity"
-                        {...register(`varieties.${varietyIndex}.product_variant_stock_quantity`, { required: true })}
-                      />
-                    </div>
-                  </div>
-
-                  <SizeSection
-                    control={control}
-                    register={register}
-                    varietyIndex={varietyIndex}
-                  />
-                </div>
-              ))}
-
-              <div className="flex justify-between items-center mb-4">
-                <Button
-                  type="button"
-                  onClick={() => appendVariety({ color: '' })}
-                 
-                  className="text-sm"
-                >
-                  <Plus className="h-4 w-4 mr-2" />
-                  Add Variety
-                </Button>
-              </div>
-            </div> */}
             {errorMessage && (
               <p className="text-red-500 mt-2">{errorMessage}</p>
             )}
